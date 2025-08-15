@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const sample = searchParams.get("sample");
     const maxPoints = sample ? parseInt(sample) : null;
 
-    // Fetch historical data based on days parameter
+    // Fetch historical data based on days parameter using chart() API
     const endDate = new Date();
     let history: any;
 
@@ -30,12 +30,23 @@ export async function GET(request: NextRequest) {
       // For specific time periods, calculate the start date
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-
-      history = await yahooFinance.historical(symbol, {
-        period1: startDate,
-        period2: endDate,
-        interval: "1d",
-      });
+      try {
+        console.log(
+          `Fetching chart data for ${symbol} from ${startDate.toISOString()} to ${endDate.toISOString()}`
+        );
+        const chart = await yahooFinance.chart(symbol, {
+          period1: startDate,
+          period2: endDate,
+          interval: "1d",
+        });
+        console.log("Chart API response:", chart);
+        history = transformChartToHistory(chart);
+        console.log(`Transformed history length: ${history.length}`);
+      } catch (chartError) {
+        console.error("Chart API error:", chartError);
+        // Fallback to empty history if chart fails
+        history = [];
+      }
     } else {
       // For MAX (days = 0), get maximum available historical data
 
@@ -45,15 +56,14 @@ export async function GET(request: NextRequest) {
       const startTime = performance.now();
 
       try {
-        // Single attempt: Start with 25 years and let Yahoo Finance return what's available
-        const maxStartDate = new Date();
-        maxStartDate.setFullYear(maxStartDate.getFullYear() - 25);
-
-        history = await yahooFinance.historical(symbol, {
-          period1: maxStartDate,
+        // Prefer very early start with period1 to approximate MAX
+        const earliest = new Date(1900, 0, 1);
+        const chartMax = await yahooFinance.chart(symbol, {
+          period1: earliest,
           period2: endDate,
           interval: "1d",
         });
+        history = transformChartToHistory(chartMax);
 
         const fetchTime = performance.now() - startTime;
 
@@ -62,11 +72,12 @@ export async function GET(request: NextRequest) {
           const fallbackDate = new Date();
           fallbackDate.setFullYear(fallbackDate.getFullYear() - 10);
 
-          history = await yahooFinance.historical(symbol, {
+          const chart10y = await yahooFinance.chart(symbol, {
             period1: fallbackDate,
             period2: endDate,
             interval: "1d",
           });
+          history = transformChartToHistory(chart10y);
 
           const totalTime = performance.now() - startTime;
         }
@@ -76,11 +87,12 @@ export async function GET(request: NextRequest) {
         emergencyDate.setFullYear(emergencyDate.getFullYear() - 5);
 
         try {
-          history = await yahooFinance.historical(symbol, {
+          const chart5y = await yahooFinance.chart(symbol, {
             period1: emergencyDate,
             period2: endDate,
             interval: "1d",
           });
+          history = transformChartToHistory(chart5y);
 
           const totalTime = performance.now() - startTime;
         } catch (emergencyError) {
@@ -146,16 +158,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Format the data for the chart
-    const chartData = history.map((item: any, index: number) => {
-      return {
-        date: item.date.toISOString(),
-        price: item.close,
-        volume: item.volume || 0,
-        high: item.high || 0,
-        low: item.low || 0,
-        open: item.open || 0,
-      };
-    });
+    const chartData = history.map((item: any) => ({
+      date: new Date(item.date).toISOString(),
+      price: item.close,
+      volume: item.volume || 0,
+      high: item.high || 0,
+      low: item.low || 0,
+      open: item.open || 0,
+    }));
 
     // Format quote data with comprehensive information
     const quoteData = {
@@ -196,4 +206,74 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function transformChartToHistory(chart: any) {
+  if (!chart) {
+    console.log("No chart data received");
+    return [];
+  }
+
+  console.log("Chart structure keys:", Object.keys(chart));
+
+  // Check if it's already an array (historical-like format)
+  if (Array.isArray(chart)) {
+    console.log("Chart is an array with length:", chart.length);
+    return chart
+      .filter((item) => item && item.date && item.close != null)
+      .map((item: any) => ({
+        date: new Date(item.date),
+        open: Number(item.open) || 0,
+        high: Number(item.high) || 0,
+        low: Number(item.low) || 0,
+        close: Number(item.close),
+        volume: Number(item.volume) || 0,
+      }));
+  }
+
+  // Check for chart response with meta and timestamps
+  if (chart.meta && chart.timestamp && chart.indicators) {
+    console.log("Using standard chart response structure");
+    const timestamps = chart.timestamp || [];
+    const quote = chart.indicators?.quote?.[0] || {};
+    const adjclose = chart.indicators?.adjclose?.[0] || {};
+
+    const result = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const timestamp = timestamps[i];
+      const close = quote.close?.[i] || adjclose.adjclose?.[i];
+
+      if (timestamp && close != null) {
+        result.push({
+          date: new Date(timestamp * 1000),
+          open: Number(quote.open?.[i]) || 0,
+          high: Number(quote.high?.[i]) || 0,
+          low: Number(quote.low?.[i]) || 0,
+          close: Number(close),
+          volume: Number(quote.volume?.[i]) || 0,
+        });
+      }
+    }
+    console.log("Transformed result length:", result.length);
+    return result;
+  }
+
+  // Fallback for quotes array structure
+  if (chart.quotes && Array.isArray(chart.quotes)) {
+    console.log("Using quotes array structure");
+    return chart.quotes
+      .filter((q: any) => q && q.date && q.close != null)
+      .map((quote: any) => ({
+        date: new Date(quote.date),
+        open: Number(quote.open) || 0,
+        high: Number(quote.high) || 0,
+        low: Number(quote.low) || 0,
+        close: Number(quote.close),
+        volume: Number(quote.volume) || 0,
+      }));
+  }
+
+  console.log("Unknown chart structure - available keys:", Object.keys(chart));
+  console.log("Chart sample:", JSON.stringify(chart).substring(0, 500));
+  return [];
 }

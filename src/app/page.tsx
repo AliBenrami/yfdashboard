@@ -35,6 +35,15 @@ import ChangeTheme from "@/components/changeTheme";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import FastChart from "@/components/FastChart";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Select as UiSelect,
+  SelectContent as UiSelectContent,
+  SelectItem as UiSelectItem,
+  SelectTrigger as UiSelectTrigger,
+  SelectValue as UiSelectValue,
+} from "@/components/ui/select";
+import RechartsStock from "@/components/RechartsStock";
 
 interface StockData {
   symbol: string;
@@ -86,6 +95,15 @@ export default function Home() {
     "AMD",
     "INTC",
   ]);
+
+  const isMobile = useIsMobile();
+  const chartHeight = isMobile ? 260 : 400;
+  const [chartType, setChartType] = useState<"line" | "area" | "candlestick">(
+    "line"
+  );
+  const [chartLibrary, setChartLibrary] = useState<"canvas" | "recharts">(
+    "canvas"
+  );
 
   // Time frame options
   const timeFrameOptions = [
@@ -261,12 +279,12 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6 dark:bg-black">
       <ChangeTheme />
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2 dark:text-white">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2 dark:text-white">
             Stock Dashboard
           </h1>
           <p className="text-gray-600 dark:text-white text-sm">
@@ -277,8 +295,8 @@ export default function Home() {
         {/* Chart Section */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <CardTitle className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
                 <span>{selectedStock} Stock Performance</span>
                 <Select
                   value={timeFrame}
@@ -296,11 +314,47 @@ export default function Home() {
                     ))}
                   </SelectContent>
                 </Select>
+                <UiSelect
+                  value={chartType}
+                  onValueChange={(v) => setChartType(v as any)}
+                  disabled={loading}
+                >
+                  <UiSelectTrigger className="w-40">
+                    <UiSelectValue placeholder="Chart Type" />
+                  </UiSelectTrigger>
+                  <UiSelectContent>
+                    <UiSelectItem value="line">Line</UiSelectItem>
+                    <UiSelectItem value="area">Area</UiSelectItem>
+                    {chartLibrary === "canvas" && (
+                      <UiSelectItem value="candlestick">
+                        Candlestick
+                      </UiSelectItem>
+                    )}
+                  </UiSelectContent>
+                </UiSelect>
+                <UiSelect
+                  value={chartLibrary}
+                  onValueChange={(v) => {
+                    setChartType("line");
+                    setChartLibrary(v as any);
+                  }}
+                  disabled={loading}
+                >
+                  <UiSelectTrigger className="w-40">
+                    <UiSelectValue placeholder="Library" />
+                  </UiSelectTrigger>
+                  <UiSelectContent>
+                    <UiSelectItem value="canvas">Canvas (Fast)</UiSelectItem>
+                    <UiSelectItem value="recharts">
+                      Recharts (Slow)
+                    </UiSelectItem>
+                  </UiSelectContent>
+                </UiSelect>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between gap-3 md:gap-4 w-full md:w-auto">
                 {stockData && !loading && (
                   <div className="text-right">
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl md:text-2xl font-bold">
                       ${stockData.price.toFixed(2)}
                     </div>
                     <div
@@ -335,7 +389,11 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             {error ? (
-              <div className="h-96 flex items-center justify-center">
+              <div
+                className={`${
+                  isMobile ? "h-64" : "h-96"
+                } flex items-center justify-center`}
+              >
                 <div className="text-center text-red-600">
                   <div className="text-lg font-medium mb-2">Error</div>
                   <div className="text-sm">{error}</div>
@@ -349,7 +407,11 @@ export default function Home() {
                 </div>
               </div>
             ) : loading ? (
-              <div className="h-96 flex items-center justify-center text-gray-500 dark:text-white">
+              <div
+                className={`${
+                  isMobile ? "h-64" : "h-96"
+                } flex items-center justify-center text-gray-500 dark:text-white`}
+              >
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                   {timeFrame === "MAX"
@@ -369,11 +431,33 @@ export default function Home() {
                   <h4 className="text-sm font-medium text-muted-foreground mb-2">
                     Stock Performance
                   </h4>
-                  <FastChart data={chartData} height={400} showVolume={true} />
+                  {chartLibrary === "canvas" ? (
+                    <FastChart
+                      data={chartData}
+                      height={chartHeight}
+                      showVolume={!isMobile}
+                      chartType={chartType}
+                    />
+                  ) : (
+                    <RechartsStock
+                      data={chartData as any}
+                      height={chartHeight}
+                      type={
+                        chartType === "candlestick"
+                          ? "line"
+                          : (chartType as any)
+                      }
+                      showVolume={!isMobile}
+                    />
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="h-96 flex items-center justify-center text-gray-500 dark:text-white">
+              <div
+                className={`${
+                  isMobile ? "h-64" : "h-96"
+                } flex items-center justify-center text-gray-500 dark:text-white`}
+              >
                 No chart data available
               </div>
             )}
@@ -657,7 +741,7 @@ export default function Home() {
         {/* Popular Stocks Section */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <CardTitle>Popular Stocks</CardTitle>
             </div>
           </CardHeader>
@@ -684,14 +768,14 @@ export default function Home() {
         {/* All Stocks Section - Table with Pagination */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <CardTitle>All Market Stocks</CardTitle>
-              <div className="flex items-center gap-4">
+              <div className="flex w-full items-center gap-2 md:gap-4">
                 <Input
                   placeholder="Search all stocks..."
                   value={allStocksSearchQuery}
                   onChange={(e) => handleAllStocksSearch(e.target.value)}
-                  className="w-64"
+                  className="w-full sm:w-64"
                 />
                 <Badge variant="secondary" className="text-sm">
                   {totalStocks} stocks
@@ -702,7 +786,7 @@ export default function Home() {
           <CardContent>
             <div className="space-y-4">
               {/* Stocks Table */}
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -768,7 +852,7 @@ export default function Home() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-3">
                   <div className="text-sm text-muted-foreground">
                     Showing {(currentPage - 1) * pageSize + 1} to{" "}
                     {Math.min(currentPage * pageSize, totalStocks)} of{" "}
