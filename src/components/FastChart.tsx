@@ -197,15 +197,7 @@ export default function FastChart({
   }, [data, height, showVolume, mousePos, hoveredIndex]);
 
   useEffect(() => {
-    console.log(`🚀 Fast Canvas Chart: Rendering ${data.length} data points`);
-    const startTime = performance.now();
-
     drawChart();
-
-    const endTime = performance.now();
-    console.log(
-      `⚡ Fast Canvas Chart: Rendered in ${(endTime - startTime).toFixed(2)}ms`
-    );
   }, [drawChart]);
 
   // Mouse event handlers

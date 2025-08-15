@@ -114,13 +114,9 @@ export default function Home() {
       // No delay needed - removed for performance
 
       // Calculate days inside queryFn to get the current timeFrame value
-      console.log(
-        `🔍 Debug: timeFrame=${timeFrame}, looking for match in options`
-      );
       const selectedTimeFrame = timeFrameOptions.find(
         (tf) => tf.value === timeFrame
       );
-      console.log(`🔍 Debug: selectedTimeFrame=`, selectedTimeFrame);
       const days = selectedTimeFrame?.days ?? 30; // Use nullish coalescing to handle 0 properly
 
       // Determine if we need server-side sampling for performance
@@ -134,19 +130,6 @@ export default function Home() {
         sampleParam = "&sample=250"; // Long periods: 250 points
       }
 
-      console.log(
-        `🔄 Frontend: Fetching ${selectedStock} with ${days} days (${timeFrame})${
-          sampleParam ? ` with server-side sampling` : ``
-        }`
-      );
-
-      // Double check we have the right days value for MAX
-      if (timeFrame === "MAX" && days !== 0) {
-        console.error(`❌ ERROR: MAX timeframe but days=${days} instead of 0!`);
-        console.error(`❌ selectedTimeFrame was:`, selectedTimeFrame);
-        console.error(`❌ timeFrameOptions:`, timeFrameOptions);
-      }
-
       const response = await fetch(
         `/api/stock?symbol=${selectedStock}&days=${days}${sampleParam}`
       );
@@ -154,9 +137,7 @@ export default function Home() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const result = await response.json();
-      console.log(
-        `✅ Frontend: Received ${result.history?.length || 0} data points`
-      );
+
       return result;
     },
     enabled: !!selectedStock,
@@ -171,9 +152,6 @@ export default function Home() {
 
   // Chart data - server already optimizes to 200 points for MAX, just pass through
   const chartData = useMemo(() => {
-    console.log(
-      `📊 Using data: ${rawChartData.length} points (server-optimized)`
-    );
     return rawChartData;
   }, [rawChartData]);
   const error = stockDataError

@@ -468,7 +468,6 @@ export async function GET(request: NextRequest) {
       hasMore: endIndex < filteredStocks.length,
     });
   } catch (error) {
-    console.error("Error fetching stocks:", error);
     return NextResponse.json(
       { error: "Failed to fetch stocks" },
       { status: 500 }
