@@ -42,11 +42,60 @@ export default function RechartsStock({
     () =>
       data.map((d) => ({
         date: new Date(d.date).toLocaleDateString(),
+        rawDate: d.date,
         price: d.price,
         volume: d.volume,
       })),
     [data]
   );
+
+  const dateSpanDays = useMemo(() => {
+    if (data.length < 2) return 0;
+    const first = new Date(data[0].date).getTime();
+    const last = new Date(data[data.length - 1].date).getTime();
+    return Math.max(0, Math.round((last - first) / (1000 * 60 * 60 * 24)));
+  }, [data]);
+
+  const renderTooltip = (props: any) => {
+    const { active, payload } = props || {};
+    if (!active || !payload || !payload.length) return null;
+
+    const p = payload[0];
+    const price = typeof p.value === "number" ? p.value : Number(p.value);
+    const rawDate = p?.payload?.rawDate as string | undefined;
+    const vol = p?.payload?.volume as number | undefined;
+    const dateLabel = (() => {
+      const d = rawDate ? new Date(rawDate) : null;
+      if (!d) return payload[0].payload?.date ?? "";
+      if (dateSpanDays <= 31) {
+        return d.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
+      } else if (dateSpanDays <= 366) {
+        return d.toLocaleDateString(undefined, {
+          month: "short",
+          year: "2-digit",
+        });
+      } else {
+        return d.toLocaleDateString(undefined, { year: "numeric" });
+      }
+    })();
+
+    return (
+      <div className="backdrop-blur-md bg-white/70 dark:bg-black/50 border border-black/5 shadow-sm px-3 py-2 rounded-md text-[11px]">
+        <div className="text-gray-700 dark:text-gray-200">{dateLabel}</div>
+        <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+          ${price.toFixed(2)}
+        </div>
+        {typeof vol === "number" && (
+          <div className="text-[11px] text-gray-600 dark:text-gray-300 mt-1">
+            V {(vol / 1_000_000).toFixed(1)}M
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const grid = <CartesianGrid strokeDasharray="3 3" />;
   const xAxis = <XAxis dataKey="date" minTickGap={24} />;
@@ -73,7 +122,11 @@ export default function RechartsStock({
             {grid}
             {xAxis}
             {yAxis}
-            {tooltip}
+            <Tooltip
+              content={renderTooltip}
+              offset={12}
+              cursor={{ stroke: "rgba(0,0,0,0.15)", strokeDasharray: "4 4" }}
+            />
             <Line
               type="monotone"
               dataKey="price"
@@ -90,7 +143,11 @@ export default function RechartsStock({
             {grid}
             {xAxis}
             {yAxis}
-            {tooltip}
+            <Tooltip
+              content={renderTooltip}
+              offset={12}
+              cursor={{ stroke: "rgba(0,0,0,0.15)", strokeDasharray: "4 4" }}
+            />
             <Area
               type="monotone"
               dataKey="price"
@@ -106,7 +163,11 @@ export default function RechartsStock({
             {grid}
             {xAxis}
             {yAxis}
-            {tooltip}
+            <Tooltip
+              content={renderTooltip}
+              offset={12}
+              cursor={{ stroke: "rgba(0,0,0,0.15)", strokeDasharray: "4 4" }}
+            />
             <Bar dataKey="volume" fill="#10b981" yAxisId={1} />
             <YAxis
               yAxisId={1}
@@ -129,7 +190,11 @@ export default function RechartsStock({
             {grid}
             {xAxis}
             {yAxis}
-            {tooltip}
+            <Tooltip
+              content={renderTooltip}
+              offset={12}
+              cursor={{ stroke: "rgba(0,0,0,0.15)", strokeDasharray: "4 4" }}
+            />
             <Bar dataKey="price" fill="#3b82f6" />
           </BarChart>
         )}

@@ -335,7 +335,7 @@ export default function Home() {
                 <UiSelect
                   value={chartLibrary}
                   onValueChange={(v) => {
-                    setChartType("line");
+                    setChartType("area");
                     setChartLibrary(v as any);
                   }}
                   disabled={loading}

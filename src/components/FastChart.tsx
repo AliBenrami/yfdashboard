@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useLayoutEffect,
+  useMemo,
 } from "react";
 
 interface ChartData {
@@ -38,6 +39,14 @@ export default function FastChart({
   );
   const [hoveredPoint, setHoveredPoint] = useState<ChartData | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number>(-1);
+
+  // Determine overall date span to drive tick/tooltip formatting
+  const dateSpanDays = useMemo(() => {
+    if (data.length < 2) return 0;
+    const first = new Date(data[0].date).getTime();
+    const last = new Date(data[data.length - 1].date).getTime();
+    return Math.max(0, Math.round((last - first) / (1000 * 60 * 60 * 24)));
+  }, [data]);
 
   const drawChart = useCallback(() => {
     if (!canvasRef.current || !data.length || canvasSize.width === 0)
@@ -220,7 +229,7 @@ export default function FastChart({
           priceChartHeight;
 
       // Draw crosshair lines
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.15)";
       ctx.lineWidth = 1;
       ctx.setLineDash([5, 5]);
       ctx.beginPath();
@@ -258,14 +267,27 @@ export default function FastChart({
       ctx.fillText(`$${price.toFixed(2)}`, leftPadding - 5, y + 4);
     }
 
-    // Draw date labels
+    // Draw date labels (condensed)
     ctx.textAlign = "center";
-    const maxLabels = Math.floor(chartWidth / 80); // Responsive number of labels
-    const dateStep = Math.max(1, Math.floor(data.length / maxLabels));
+    const maxLabels = Math.max(2, Math.floor(chartWidth / 120));
+    const dateStep = Math.max(1, Math.ceil(data.length / maxLabels));
+    const formatDateLabel = (dateStr: string) => {
+      const d = new Date(dateStr);
+      if (dateSpanDays <= 31) {
+        return d.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
+      } else if (dateSpanDays <= 366) {
+        return d.toLocaleDateString(undefined, { month: "short" });
+      } else {
+        return d.toLocaleDateString(undefined, { year: "numeric" });
+      }
+    };
     for (let i = 0; i < data.length; i += dateStep) {
       const x = leftPadding + (i / (data.length - 1)) * chartWidth;
-      const date = new Date(data[i].date).toLocaleDateString();
-      ctx.fillText(date, x, rect.height - bottomPadding + 20);
+      const label = formatDateLabel(data[i].date);
+      ctx.fillText(label, x, rect.height - bottomPadding + 16);
     }
 
     return {
@@ -346,6 +368,53 @@ export default function FastChart({
     setHoveredIndex(-1);
   }, []);
 
+  // Compute tooltip position with smart flipping to avoid overlapping cursor/edges
+  const tooltipPos = useMemo(() => {
+    if (!mousePos) return null;
+    const tooltipWidth = 180;
+    const tooltipHeight = 78;
+    const padding = 16;
+
+    const containerWidth = containerRef.current?.clientWidth || 0;
+    const containerHeight = containerRef.current?.clientHeight || height;
+
+    const preferRight = mousePos.x < containerWidth / 2;
+    const preferBelow = mousePos.y < containerHeight / 2;
+
+    let left = preferRight
+      ? mousePos.x + padding
+      : mousePos.x - tooltipWidth - padding;
+
+    let top = preferBelow
+      ? mousePos.y + padding
+      : mousePos.y - tooltipHeight - padding;
+
+    // Edge-aware flipping if necessary
+    if (left + tooltipWidth > containerWidth - 8) {
+      left = Math.max(8, mousePos.x - tooltipWidth - padding);
+    } else if (left < 8) {
+      left = Math.min(containerWidth - tooltipWidth - 8, mousePos.x + padding);
+    }
+
+    if (top + tooltipHeight > containerHeight - 8) {
+      top = Math.max(8, mousePos.y - tooltipHeight - padding);
+    } else if (top < 8) {
+      top = Math.min(containerHeight - tooltipHeight - 8, mousePos.y + padding);
+    }
+
+    // Final clamping inside container
+    left = Math.min(
+      Math.max(8, left),
+      Math.max(8, containerWidth - tooltipWidth - 8)
+    );
+    top = Math.min(
+      Math.max(8, top),
+      Math.max(8, containerHeight - tooltipHeight - 8)
+    );
+
+    return { left, top };
+  }, [mousePos, height]);
+
   return (
     <div className="w-full relative" ref={containerRef}>
       <canvas
@@ -357,44 +426,38 @@ export default function FastChart({
       />
 
       {/* Tooltip */}
-      {hoveredPoint && mousePos && (
+      {hoveredPoint && mousePos && tooltipPos && (
         <div
-          className="absolute bg-white border border-gray-300 rounded-lg shadow-lg p-3 pointer-events-none z-10"
+          className="absolute rounded-md pointer-events-none z-10"
           style={{
-            left: Math.min(
-              mousePos.x + 10,
-              (containerRef.current?.clientWidth || 0) - 200
-            ),
-            top: Math.max(mousePos.y - 80, 10),
+            left: tooltipPos.left,
+            top: tooltipPos.top,
           }}
         >
-          <div className="text-sm font-semibold text-gray-800">
-            {new Date(hoveredPoint.date).toLocaleDateString("en-US", {
-              weekday: "short",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
-          </div>
-          <div className="text-lg font-bold text-blue-600">
-            ${hoveredPoint.price.toFixed(2)}
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-2">
-            <div>
-              <span className="text-gray-500">Open:</span> $
-              {hoveredPoint.open.toFixed(2)}
+          <div className="backdrop-blur-md bg-white/70 dark:bg-black/50 border border-black/5 shadow-sm px-3 py-2 rounded-md">
+            <div className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
+              {dateSpanDays <= 31
+                ? new Intl.DateTimeFormat(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  }).format(new Date(hoveredPoint.date))
+                : dateSpanDays <= 366
+                ? new Intl.DateTimeFormat(undefined, {
+                    month: "short",
+                    year: "2-digit",
+                  }).format(new Date(hoveredPoint.date))
+                : new Intl.DateTimeFormat(undefined, {
+                    year: "numeric",
+                  }).format(new Date(hoveredPoint.date))}
             </div>
-            <div>
-              <span className="text-gray-500">High:</span> $
-              {hoveredPoint.high.toFixed(2)}
+            <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+              ${hoveredPoint.price.toFixed(2)}
             </div>
-            <div>
-              <span className="text-gray-500">Low:</span> $
-              {hoveredPoint.low.toFixed(2)}
-            </div>
-            <div>
-              <span className="text-gray-500">Volume:</span>{" "}
-              {(hoveredPoint.volume / 1000000).toFixed(1)}M
+            <div className="flex items-center gap-3 text-[11px] text-gray-600 dark:text-gray-300 mt-1">
+              <span>O {hoveredPoint.open.toFixed(2)}</span>
+              <span>H {hoveredPoint.high.toFixed(2)}</span>
+              <span>L {hoveredPoint.low.toFixed(2)}</span>
+              <span>V {(hoveredPoint.volume / 1_000_000).toFixed(1)}M</span>
             </div>
           </div>
         </div>
