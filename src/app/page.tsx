@@ -45,6 +45,7 @@ import {
   SelectValue as UiSelectValue,
 } from "@/components/ui/select";
 import RechartsStock from "@/components/RechartsStock";
+import NewsDashboard from "@/components/NewsDashboard";
 
 interface StockData {
   symbol: string;
@@ -82,10 +83,12 @@ interface ChartData {
 
 export default function Home() {
   const queryClient = useQueryClient();
-  
-  // Navigation state for switching between Stock and Crypto
-  const [activeTab, setActiveTab] = useState<"stock" | "crypto">("stock");
-  
+
+  // Navigation state for switching between Stock, Crypto, and News
+  const [activeTab, setActiveTab] = useState<"stock" | "crypto" | "news">(
+    "stock"
+  );
+
   const [selectedStock, setSelectedStock] = useState<string>("AAPL");
   const [timeFrame, setTimeFrame] = useState<string>("1M");
   const [popularStocks] = useState<string[]>([
@@ -104,16 +107,16 @@ export default function Home() {
   // Cryptocurrency state
   const [selectedCrypto, setSelectedCrypto] = useState<string>("BTC-USD");
   const [popularCryptos] = useState<string[]>([
-    "BTC-USD",   // Bitcoin
-    "ETH-USD",   // Ethereum
-    "BNB-USD",   // Binance Coin
-    "XRP-USD",   // Ripple
-    "ADA-USD",   // Cardano
-    "DOGE-USD",  // Dogecoin
+    "BTC-USD", // Bitcoin
+    "ETH-USD", // Ethereum
+    "BNB-USD", // Binance Coin
+    "XRP-USD", // Ripple
+    "ADA-USD", // Cardano
+    "DOGE-USD", // Dogecoin
     "MATIC-USD", // Polygon
-    "SOL-USD",   // Solana
-    "LINK-USD",  // Chainlink
-    "LTC-USD",   // Litecoin
+    "SOL-USD", // Solana
+    "LINK-USD", // Chainlink
+    "LTC-USD", // Litecoin
   ]);
 
   const isMobile = useIsMobile();
@@ -141,7 +144,8 @@ export default function Home() {
   const [allStocksSearchQuery, setAllStocksSearchQuery] = useState<string>("");
 
   // All cryptos state for infinite scroll
-  const [allCryptosSearchQuery, setAllCryptosSearchQuery] = useState<string>("");
+  const [allCryptosSearchQuery, setAllCryptosSearchQuery] =
+    useState<string>("");
 
   // TanStack Query for stock data
   const {
@@ -243,9 +247,14 @@ export default function Home() {
 
   // Chart data - server already optimizes to 200 points for MAX, just pass through
   const chartData = currentChartData;
-  const error = activeTab === "stock" 
-    ? (stockDataError ? "Failed to fetch stock data. Please try again." : null)
-    : (cryptoDataError ? "Failed to fetch cryptocurrency data. Please try again." : null);
+  const error =
+    activeTab === "stock"
+      ? stockDataError
+        ? "Failed to fetch stock data. Please try again."
+        : null
+      : cryptoDataError
+      ? "Failed to fetch cryptocurrency data. Please try again."
+      : null;
 
   const filteredStocks = popularStocks;
   const filteredCryptos = popularCryptos;
@@ -272,7 +281,9 @@ export default function Home() {
       } else {
         toast.loading("Refreshing cryptocurrency data...", { id: "refresh" });
         await refetchCryptoData();
-        toast.success("Cryptocurrency data refreshed successfully!", { id: "refresh" });
+        toast.success("Cryptocurrency data refreshed successfully!", {
+          id: "refresh",
+        });
       }
     } catch (error) {
       toast.error(`Failed to refresh ${activeTab} data. Please try again.`, {
@@ -344,7 +355,8 @@ export default function Home() {
   const totalItems = activeTab === "stock" ? totalStocks : totalCryptos;
   const totalPagesCount = activeTab === "stock" ? totalPages : totalCryptoPages;
   const allItems = activeTab === "stock" ? allStocks : allCryptos;
-  const isLoadingItems = activeTab === "stock" ? allStocksLoading : allCryptosLoading;
+  const isLoadingItems =
+    activeTab === "stock" ? allStocksLoading : allCryptosLoading;
 
   // Search all stocks
   const handleAllStocksSearch = (query: string) => {
@@ -368,7 +380,8 @@ export default function Home() {
   };
 
   // Get current search query
-  const currentSearchQuery = activeTab === "stock" ? allStocksSearchQuery : allCryptosSearchQuery;
+  const currentSearchQuery =
+    activeTab === "stock" ? allStocksSearchQuery : allCryptosSearchQuery;
 
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -414,637 +427,673 @@ export default function Home() {
   return (
     <>
       {/* Navigation Header */}
-      <NavigationHeader 
-        currentPage={activeTab} 
-        onPageChange={setActiveTab} 
-      />
-      
+      <NavigationHeader currentPage={activeTab} onPageChange={setActiveTab} />
+
       {/* Content Area */}
       {activeTab === "stock" ? (
         <div className="min-h-screen bg-gray-50 p-4 md:p-6 dark:bg-black">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Stock Dashboard Content */}
-            
+
             {/* Chart Section */}
             <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                <span>{selectedStock} Stock Performance</span>
-                <Select
-                  value={timeFrame}
-                  onValueChange={setTimeFrame}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeFrameOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <UiSelect
-                  value={chartType}
-                  onValueChange={(v) => setChartType(v as any)}
-                  disabled={loading}
-                >
-                  <UiSelectTrigger className="w-40">
-                    <UiSelectValue placeholder="Chart Type" />
-                  </UiSelectTrigger>
-                  <UiSelectContent>
-                    <UiSelectItem value="line">Line</UiSelectItem>
-                    <UiSelectItem value="area">Area</UiSelectItem>
-                    {chartLibrary === "canvas" && (
-                      <UiSelectItem value="candlestick">
-                        Candlestick
-                      </UiSelectItem>
-                    )}
-                  </UiSelectContent>
-                </UiSelect>
-                <UiSelect
-                  value={chartLibrary}
-                  onValueChange={(v) => {
-                    setChartType("area");
-                    setChartLibrary(v as any);
-                  }}
-                  disabled={loading}
-                >
-                  <UiSelectTrigger className="w-40">
-                    <UiSelectValue placeholder="Library" />
-                  </UiSelectTrigger>
-                  <UiSelectContent>
-                    <UiSelectItem value="canvas">Canvas (Fast)</UiSelectItem>
-                    <UiSelectItem value="recharts">
-                      Recharts (Slow)
-                    </UiSelectItem>
-                  </UiSelectContent>
-                </UiSelect>
-              </div>
-              <div className="flex items-center justify-between gap-3 md:gap-4 w-full md:w-auto">
-                {stockData && !loading && (
-                  <div className="text-right">
-                    <div className="text-xl md:text-2xl font-bold">
-                      ${stockData.price.toFixed(2)}
-                    </div>
-                    <div
-                      className={`text-sm ${
-                        stockData.change >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
+              <CardHeader>
+                <CardTitle className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                    <span>{selectedStock} Stock Performance</span>
+                    <Select
+                      value={timeFrame}
+                      onValueChange={setTimeFrame}
+                      disabled={loading}
                     >
-                      {stockData.change >= 0 ? "+" : ""}
-                      {stockData.change.toFixed(2)} (
-                      {stockData.changePercent.toFixed(2)}%)
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeFrameOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <UiSelect
+                      value={chartType}
+                      onValueChange={(v) => setChartType(v as any)}
+                      disabled={loading}
+                    >
+                      <UiSelectTrigger className="w-40">
+                        <UiSelectValue placeholder="Chart Type" />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem value="line">Line</UiSelectItem>
+                        <UiSelectItem value="area">Area</UiSelectItem>
+                        {chartLibrary === "canvas" && (
+                          <UiSelectItem value="candlestick">
+                            Candlestick
+                          </UiSelectItem>
+                        )}
+                      </UiSelectContent>
+                    </UiSelect>
+                    <UiSelect
+                      value={chartLibrary}
+                      onValueChange={(v) => {
+                        setChartType("area");
+                        setChartLibrary(v as any);
+                      }}
+                      disabled={loading}
+                    >
+                      <UiSelectTrigger className="w-40">
+                        <UiSelectValue placeholder="Library" />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem value="canvas">
+                          Canvas (Fast)
+                        </UiSelectItem>
+                        <UiSelectItem value="recharts">
+                          Recharts (Slow)
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 md:gap-4 w-full md:w-auto">
+                    {stockData && !loading && (
+                      <div className="text-right">
+                        <div className="text-xl md:text-2xl font-bold">
+                          ${stockData.price.toFixed(2)}
+                        </div>
+                        <div
+                          className={`text-sm ${
+                            stockData.change >= 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {stockData.change >= 0 ? "+" : ""}
+                          {stockData.change.toFixed(2)} (
+                          {stockData.changePercent.toFixed(2)}%)
+                        </div>
+                      </div>
+                    )}
+                    <Button
+                      onClick={handleRefresh}
+                      disabled={loading}
+                      variant="outline"
+                      size="sm"
+                      title="Refresh data"
+                      className="min-w-[40px]"
+                    >
+                      {loading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      ) : (
+                        "↻"
+                      )}
+                    </Button>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {error ? (
+                  <div
+                    className={`${
+                      isMobile ? "h-64" : "h-96"
+                    } flex items-center justify-center`}
+                  >
+                    <div className="text-center text-red-600">
+                      <div className="text-lg font-medium mb-2">Error</div>
+                      <div className="text-sm">{error}</div>
+                      <Button
+                        onClick={handleRefresh}
+                        disabled={loading}
+                        className="mt-4 bg-red-600 text-white hover:bg-red-700"
+                      >
+                        {loading ? "Retrying..." : "Retry"}
+                      </Button>
                     </div>
+                  </div>
+                ) : loading ? (
+                  <div
+                    className={`${
+                      isMobile ? "h-64" : "h-96"
+                    } flex items-center justify-center text-gray-500 dark:text-white`}
+                  >
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                      {timeFrame === "MAX"
+                        ? "Loading historical data..."
+                        : "Loading chart data..."}
+                      {timeFrame === "MAX" && (
+                        <div className="text-xs mt-2 text-gray-400">
+                          Optimizing large dataset for better performance...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : chartData.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* High-Performance Chart */}
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                        Stock Performance
+                      </h4>
+                      {chartLibrary === "canvas" ? (
+                        <FastChart
+                          data={chartData}
+                          height={chartHeight}
+                          showVolume={!isMobile}
+                          chartType={chartType}
+                        />
+                      ) : (
+                        <RechartsStock
+                          data={chartData as any}
+                          height={chartHeight}
+                          type={
+                            chartType === "candlestick"
+                              ? "line"
+                              : (chartType as any)
+                          }
+                          showVolume={!isMobile}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`${
+                      isMobile ? "h-64" : "h-96"
+                    } flex items-center justify-center text-gray-500 dark:text-white`}
+                  >
+                    No chart data available
                   </div>
                 )}
-                <Button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  variant="outline"
-                  size="sm"
-                  title="Refresh data"
-                  className="min-w-[40px]"
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                  ) : (
-                    "↻"
-                  )}
-                </Button>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {error ? (
-              <div
-                className={`${
-                  isMobile ? "h-64" : "h-96"
-                } flex items-center justify-center`}
-              >
-                <div className="text-center text-red-600">
-                  <div className="text-lg font-medium mb-2">Error</div>
-                  <div className="text-sm">{error}</div>
-                  <Button
-                    onClick={handleRefresh}
-                    disabled={loading}
-                    className="mt-4 bg-red-600 text-white hover:bg-red-700"
-                  >
-                    {loading ? "Retrying..." : "Retry"}
-                  </Button>
-                </div>
-              </div>
-            ) : loading ? (
-              <div
-                className={`${
-                  isMobile ? "h-64" : "h-96"
-                } flex items-center justify-center text-gray-500 dark:text-white`}
-              >
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                  {timeFrame === "MAX"
-                    ? "Loading historical data..."
-                    : "Loading chart data..."}
-                  {timeFrame === "MAX" && (
-                    <div className="text-xs mt-2 text-gray-400">
-                      Optimizing large dataset for better performance...
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : chartData.length > 0 ? (
-              <div className="space-y-4">
-                {/* High-Performance Chart */}
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                    Stock Performance
-                  </h4>
-                  {chartLibrary === "canvas" ? (
-                    <FastChart
-                      data={chartData}
-                      height={chartHeight}
-                      showVolume={!isMobile}
-                      chartType={chartType}
-                    />
-                  ) : (
-                    <RechartsStock
-                      data={chartData as any}
-                      height={chartHeight}
-                      type={
-                        chartType === "candlestick"
-                          ? "line"
-                          : (chartType as any)
-                      }
-                      showVolume={!isMobile}
-                    />
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div
-                className={`${
-                  isMobile ? "h-64" : "h-96"
-                } flex items-center justify-center text-gray-500 dark:text-white`}
-              >
-                No chart data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Stock Details Section */}
-        {stockData && (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Stock Details - {stockData.shortName || selectedStock}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Price Information */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <Badge variant="outline">💰</Badge>
-                    <h3 className="font-semibold text-lg">Price Information</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Current Price:
-                      </span>
-                      <span className="font-medium">
-                        ${stockData.price.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Previous Close:
-                      </span>
-                      <span className="font-medium">
-                        ${stockData.previousClose.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Open:</span>
-                      <span className="font-medium">
-                        ${stockData.open.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Day High:</span>
-                      <span className="font-medium">
-                        ${stockData.high.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Day Low:</span>
-                      <span className="font-medium">
-                        ${stockData.low.toFixed(2)}
-                      </span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Change:</span>
-                      <Badge
-                        variant={
-                          stockData.change >= 0 ? "default" : "destructive"
-                        }
-                        className="font-medium"
-                      >
-                        {stockData.change >= 0 ? "+" : ""}
-                        {stockData.change.toFixed(2)}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Change %:</span>
-                      <Badge
-                        variant={
-                          stockData.changePercent >= 0
-                            ? "default"
-                            : "destructive"
-                        }
-                        className="font-medium"
-                      >
-                        {stockData.changePercent >= 0 ? "+" : ""}
-                        {stockData.changePercent.toFixed(2)}%
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Volume & Market Data */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <Badge variant="outline">📊</Badge>
-                    <h3 className="font-semibold text-lg">Volume & Market</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Volume:</span>
-                      <span className="font-medium">
-                        {stockData.volume.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Avg Volume:</span>
-                      <span className="font-medium">
-                        {stockData.averageVolume.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Market Cap:</span>
-                      <span className="font-medium">
-                        {stockData.marketCap > 0
-                          ? `$${(stockData.marketCap / 1e9).toFixed(2)}B`
-                          : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Exchange:</span>
-                      <Badge variant="secondary">{stockData.exchange}</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Currency:</span>
-                      <Badge variant="outline">{stockData.currency}</Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Technical Indicators */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <Badge variant="outline">📈</Badge>
-                    <h3 className="font-semibold text-lg">
-                      Technical Indicators
-                    </h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">P/E Ratio:</span>
-                      <span className="font-medium">
-                        {stockData.peRatio > 0
-                          ? stockData.peRatio.toFixed(2)
-                          : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Price/Book:</span>
-                      <span className="font-medium">
-                        {stockData.priceToBook > 0
-                          ? stockData.priceToBook.toFixed(2)
-                          : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Beta:</span>
-                      <span className="font-medium">
-                        {stockData.beta > 0 ? stockData.beta.toFixed(2) : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Dividend Yield:
-                      </span>
-                      <span className="font-medium">
-                        {stockData.dividendYield > 0
-                          ? `${(stockData.dividendYield * 100).toFixed(2)}%`
-                          : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 52-Week Range & Chart Data */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <Badge variant="outline">📅</Badge>
-                    <h3 className="font-semibold text-lg">52-Week Range</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">52W High:</span>
-                      <span className="font-medium">
-                        ${stockData.fiftyTwoWeekHigh.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">52W Low:</span>
-                      <span className="font-medium">
-                        ${stockData.fiftyTwoWeekLow.toFixed(2)}
-                      </span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Data Points:
-                      </span>
-                      <div className="flex gap-2">
-                        <Badge variant="secondary">{chartData.length}</Badge>
-                        {rawChartData.length > chartData.length && (
-                          <Badge variant="outline" className="text-xs">
-                            Optimized from {rawChartData.length}
+            {/* Stock Details Section */}
+            {stockData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    Stock Details - {stockData.shortName || selectedStock}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Price Information */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <Badge variant="outline">💰</Badge>
+                        <h3 className="font-semibold text-lg">
+                          Price Information
+                        </h3>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Current Price:
+                          </span>
+                          <span className="font-medium">
+                            ${stockData.price.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Previous Close:
+                          </span>
+                          <span className="font-medium">
+                            ${stockData.previousClose.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Open:</span>
+                          <span className="font-medium">
+                            ${stockData.open.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Day High:
+                          </span>
+                          <span className="font-medium">
+                            ${stockData.high.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Day Low:
+                          </span>
+                          <span className="font-medium">
+                            ${stockData.low.toFixed(2)}
+                          </span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Change:</span>
+                          <Badge
+                            variant={
+                              stockData.change >= 0 ? "default" : "destructive"
+                            }
+                            className="font-medium"
+                          >
+                            {stockData.change >= 0 ? "+" : ""}
+                            {stockData.change.toFixed(2)}
                           </Badge>
-                        )}
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Change %:
+                          </span>
+                          <Badge
+                            variant={
+                              stockData.changePercent >= 0
+                                ? "default"
+                                : "destructive"
+                            }
+                            className="font-medium"
+                          >
+                            {stockData.changePercent >= 0 ? "+" : ""}
+                            {stockData.changePercent.toFixed(2)}%
+                          </Badge>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Date Range:</span>
-                      <span className="font-medium text-sm">
-                        {chartData.length > 0
-                          ? `${new Date(
-                              chartData[0].date
-                            ).toLocaleDateString()} - ${new Date(
-                              chartData[chartData.length - 1].date
-                            ).toLocaleDateString()}`
-                          : "N/A"}
-                      </span>
-                    </div>
-                    {timeFrame === "MAX" && chartData.length > 0 && (
-                      <>
+
+                    {/* Volume & Market Data */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <Badge variant="outline">📊</Badge>
+                        <h3 className="font-semibold text-lg">
+                          Volume & Market
+                        </h3>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Volume:</span>
+                          <span className="font-medium">
+                            {stockData.volume.toLocaleString()}
+                          </span>
+                        </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">
-                            Years of Data:
+                            Avg Volume:
                           </span>
-                          <Badge
-                            variant="outline"
-                            className="font-medium text-sm"
-                          >
-                            {(
-                              (new Date(
-                                chartData[chartData.length - 1].date
-                              ).getTime() -
-                                new Date(chartData[0].date).getTime()) /
-                              (1000 * 60 * 60 * 24 * 365)
-                            ).toFixed(1)}{" "}
-                            years
+                          <span className="font-medium">
+                            {stockData.averageVolume.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Market Cap:
+                          </span>
+                          <span className="font-medium">
+                            {stockData.marketCap > 0
+                              ? `$${(stockData.marketCap / 1e9).toFixed(2)}B`
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Exchange:
+                          </span>
+                          <Badge variant="secondary">
+                            {stockData.exchange}
                           </Badge>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">
-                            MAX Status:
+                            Currency:
                           </span>
-                          <Badge
-                            variant={loading ? "secondary" : "default"}
-                            className="font-medium text-sm"
-                          >
-                            {loading ? "Fetching..." : "Loaded"}
-                          </Badge>
+                          <Badge variant="outline">{stockData.currency}</Badge>
                         </div>
-                      </>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Lowest Price:
-                      </span>
-                      <span className="font-medium">
-                        $
-                        {chartData.length > 0
-                          ? Math.min(
-                              ...chartData.map((d: ChartData) => d.price)
-                            ).toFixed(2)
-                          : "N/A"}
-                      </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Highest Price:
-                      </span>
-                      <span className="font-medium">
-                        $
-                        {chartData.length > 0
-                          ? Math.max(
-                              ...chartData.map((d: ChartData) => d.price)
-                            ).toFixed(2)
-                          : "N/A"}
-                      </span>
+
+                    {/* Technical Indicators */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <Badge variant="outline">📈</Badge>
+                        <h3 className="font-semibold text-lg">
+                          Technical Indicators
+                        </h3>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            P/E Ratio:
+                          </span>
+                          <span className="font-medium">
+                            {stockData.peRatio > 0
+                              ? stockData.peRatio.toFixed(2)
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Price/Book:
+                          </span>
+                          <span className="font-medium">
+                            {stockData.priceToBook > 0
+                              ? stockData.priceToBook.toFixed(2)
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Beta:</span>
+                          <span className="font-medium">
+                            {stockData.beta > 0
+                              ? stockData.beta.toFixed(2)
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Dividend Yield:
+                          </span>
+                          <span className="font-medium">
+                            {stockData.dividendYield > 0
+                              ? `${(stockData.dividendYield * 100).toFixed(2)}%`
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 52-Week Range & Chart Data */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <Badge variant="outline">📅</Badge>
+                        <h3 className="font-semibold text-lg">52-Week Range</h3>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            52W High:
+                          </span>
+                          <span className="font-medium">
+                            ${stockData.fiftyTwoWeekHigh.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            52W Low:
+                          </span>
+                          <span className="font-medium">
+                            ${stockData.fiftyTwoWeekLow.toFixed(2)}
+                          </span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Data Points:
+                          </span>
+                          <div className="flex gap-2">
+                            <Badge variant="secondary">
+                              {chartData.length}
+                            </Badge>
+                            {rawChartData.length > chartData.length && (
+                              <Badge variant="outline" className="text-xs">
+                                Optimized from {rawChartData.length}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Date Range:
+                          </span>
+                          <span className="font-medium text-sm">
+                            {chartData.length > 0
+                              ? `${new Date(
+                                  chartData[0].date
+                                ).toLocaleDateString()} - ${new Date(
+                                  chartData[chartData.length - 1].date
+                                ).toLocaleDateString()}`
+                              : "N/A"}
+                          </span>
+                        </div>
+                        {timeFrame === "MAX" && chartData.length > 0 && (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">
+                                Years of Data:
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="font-medium text-sm"
+                              >
+                                {(
+                                  (new Date(
+                                    chartData[chartData.length - 1].date
+                                  ).getTime() -
+                                    new Date(chartData[0].date).getTime()) /
+                                  (1000 * 60 * 60 * 24 * 365)
+                                ).toFixed(1)}{" "}
+                                years
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">
+                                MAX Status:
+                              </span>
+                              <Badge
+                                variant={loading ? "secondary" : "default"}
+                                className="font-medium text-sm"
+                              >
+                                {loading ? "Fetching..." : "Loaded"}
+                              </Badge>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Lowest Price:
+                          </span>
+                          <span className="font-medium">
+                            $
+                            {chartData.length > 0
+                              ? Math.min(
+                                  ...chartData.map((d: ChartData) => d.price)
+                                ).toFixed(2)
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Highest Price:
+                          </span>
+                          <span className="font-medium">
+                            $
+                            {chartData.length > 0
+                              ? Math.max(
+                                  ...chartData.map((d: ChartData) => d.price)
+                                ).toFixed(2)
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Popular Stocks Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <CardTitle>Popular Stocks</CardTitle>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {filteredStocks.map((stock) => (
+                    <Button
+                      key={stock}
+                      variant={selectedStock === stock ? "default" : "outline"}
+                      onClick={() => handleStockSelect(stock)}
+                      disabled={loading}
+                      className="h-auto p-4 flex-col gap-2"
+                    >
+                      <div className="font-medium text-base">{stock}</div>
+                      <Badge variant="secondary" className="text-xs">
+                        Popular
+                      </Badge>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Popular Stocks Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <CardTitle>Popular Stocks</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {filteredStocks.map((stock) => (
-                <Button
-                  key={stock}
-                  variant={selectedStock === stock ? "default" : "outline"}
-                  onClick={() => handleStockSelect(stock)}
-                  disabled={loading}
-                  className="h-auto p-4 flex-col gap-2"
-                >
-                  <div className="font-medium text-base">{stock}</div>
-                  <Badge variant="secondary" className="text-xs">
-                    Popular
-                  </Badge>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* All Stocks Section - Table with Pagination */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <CardTitle>All Market Stocks</CardTitle>
-              <div className="flex w-full items-center gap-2 md:gap-4">
-                <Input
-                  placeholder="Search all stocks..."
-                  value={allStocksSearchQuery}
-                  onChange={(e) => handleAllStocksSearch(e.target.value)}
-                  className="w-full sm:w-64"
-                />
-                <Badge variant="secondary" className="text-sm">
-                  {totalStocks} stocks
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Stocks Table */}
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-20">Symbol</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead className="w-24">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allStocksLoading ? (
-                      // Loading skeletons
-                      Array.from({ length: pageSize }).map((_, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <Skeleton className="h-6 w-16" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-6 w-32" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-6 w-20" />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : allStocks.length > 0 ? (
-                      allStocks.map((stock: any) => (
-                        <TableRow
-                          key={stock.symbol}
-                          className="hover:bg-muted/50"
-                        >
-                          <TableCell className="font-mono font-medium">
-                            {stock.symbol}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {stock.companyName}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleStockSelect(stock.symbol)}
-                              disabled={loading}
-                              className="w-full"
-                            >
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={3}
-                          className="text-center py-8 text-muted-foreground"
-                        >
-                          No stocks found matching your search
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * pageSize + 1} to{" "}
-                    {Math.min(currentPage * pageSize, totalStocks)} of{" "}
-                    {totalStocks} stocks
+            {/* All Stocks Section - Table with Pagination */}
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <CardTitle>All Market Stocks</CardTitle>
+                  <div className="flex w-full items-center gap-2 md:gap-4">
+                    <Input
+                      placeholder="Search all stocks..."
+                      value={allStocksSearchQuery}
+                      onChange={(e) => handleAllStocksSearch(e.target.value)}
+                      className="w-full sm:w-64"
+                    />
+                    <Badge variant="secondary" className="text-sm">
+                      {totalStocks} stocks
+                    </Badge>
                   </div>
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => handlePageChange(currentPage - 1)}
-                          className={
-                            currentPage <= 1
-                              ? "pointer-events-none opacity-50"
-                              : "cursor-pointer"
-                          }
-                        />
-                      </PaginationItem>
-
-                      {getPageNumbers().map((page, index) => (
-                        <PaginationItem key={index}>
-                          {page === "ellipsis" ? (
-                            <PaginationEllipsis />
-                          ) : (
-                            <PaginationLink
-                              onClick={() => handlePageChange(page as number)}
-                              isActive={currentPage === page}
-                              className="cursor-pointer"
-                            >
-                              {page}
-                            </PaginationLink>
-                          )}
-                        </PaginationItem>
-                      ))}
-
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => handlePageChange(currentPage + 1)}
-                          className={
-                            currentPage >= totalPages
-                              ? "pointer-events-none opacity-50"
-                              : "cursor-pointer"
-                          }
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Stocks Table */}
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-20">Symbol</TableHead>
+                          <TableHead>Company</TableHead>
+                          <TableHead className="w-24">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allStocksLoading ? (
+                          // Loading skeletons
+                          Array.from({ length: pageSize }).map((_, index) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <Skeleton className="h-6 w-16" />
+                              </TableCell>
+                              <TableCell>
+                                <Skeleton className="h-6 w-32" />
+                              </TableCell>
+                              <TableCell>
+                                <Skeleton className="h-6 w-20" />
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : allStocks.length > 0 ? (
+                          allStocks.map((stock: any) => (
+                            <TableRow
+                              key={stock.symbol}
+                              className="hover:bg-muted/50"
+                            >
+                              <TableCell className="font-mono font-medium">
+                                {stock.symbol}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {stock.companyName}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleStockSelect(stock.symbol)
+                                  }
+                                  disabled={loading}
+                                  className="w-full"
+                                >
+                                  View
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell
+                              colSpan={3}
+                              className="text-center py-8 text-muted-foreground"
+                            >
+                              No stocks found matching your search
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                        {Math.min(currentPage * pageSize, totalStocks)} of{" "}
+                        {totalStocks} stocks
+                      </div>
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              className={
+                                currentPage <= 1
+                                  ? "pointer-events-none opacity-50"
+                                  : "cursor-pointer"
+                              }
+                            />
+                          </PaginationItem>
+
+                          {getPageNumbers().map((page, index) => (
+                            <PaginationItem key={index}>
+                              {page === "ellipsis" ? (
+                                <PaginationEllipsis />
+                              ) : (
+                                <PaginationLink
+                                  onClick={() =>
+                                    handlePageChange(page as number)
+                                  }
+                                  isActive={currentPage === page}
+                                  className="cursor-pointer"
+                                >
+                                  {page}
+                                </PaginationLink>
+                              )}
+                            </PaginationItem>
+                          ))}
+
+                          <PaginationItem>
+                            <PaginationNext
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              className={
+                                currentPage >= totalPages
+                                  ? "pointer-events-none opacity-50"
+                                  : "cursor-pointer"
+                              }
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      ) : (
-        /* Cryptocurrency Dashboard - Full Implementation */
+      ) : activeTab === "crypto" ? (
         <div className="min-h-screen bg-gray-50 p-4 md:p-6 dark:bg-black">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Cryptocurrency Dashboard Content */}
-            
+
             {/* Chart Section */}
             <Card className="w-full">
               <CardHeader>
@@ -1078,7 +1127,9 @@ export default function Home() {
                       <UiSelectContent>
                         <UiSelectItem value="line">Line Chart</UiSelectItem>
                         <UiSelectItem value="area">Area Chart</UiSelectItem>
-                        <UiSelectItem value="candlestick">Candlestick</UiSelectItem>
+                        <UiSelectItem value="candlestick">
+                          Candlestick
+                        </UiSelectItem>
                       </UiSelectContent>
                     </UiSelect>
                     <UiSelect
@@ -1138,7 +1189,11 @@ export default function Home() {
                   </div>
                 )}
                 {loading ? (
-                  <div className={`${isMobile ? "h-64" : "h-96"} flex flex-col items-center justify-center text-gray-500`}>
+                  <div
+                    className={`${
+                      isMobile ? "h-64" : "h-96"
+                    } flex flex-col items-center justify-center text-gray-500`}
+                  >
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                     {timeFrame === "MAX"
                       ? "Loading historical data..."
@@ -1203,7 +1258,9 @@ export default function Home() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 pb-2 border-b">
                         <Badge variant="outline">💰</Badge>
-                        <h3 className="font-semibold text-lg">Price Information</h3>
+                        <h3 className="font-semibold text-lg">
+                          Price Information
+                        </h3>
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
@@ -1229,13 +1286,17 @@ export default function Home() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Day High:</span>
+                          <span className="text-muted-foreground">
+                            Day High:
+                          </span>
                           <span className="font-medium">
                             ${cryptoData.high.toFixed(2)}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Day Low:</span>
+                          <span className="text-muted-foreground">
+                            Day Low:
+                          </span>
                           <span className="font-medium">
                             ${cryptoData.low.toFixed(2)}
                           </span>
@@ -1254,7 +1315,9 @@ export default function Home() {
                           </Badge>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Change %:</span>
+                          <span className="text-muted-foreground">
+                            Change %:
+                          </span>
                           <Badge
                             variant={
                               cryptoData.changePercent >= 0
@@ -1274,7 +1337,9 @@ export default function Home() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 pb-2 border-b">
                         <Badge variant="outline">📊</Badge>
-                        <h3 className="font-semibold text-lg">Volume & Market</h3>
+                        <h3 className="font-semibold text-lg">
+                          Volume & Market
+                        </h3>
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
@@ -1284,7 +1349,9 @@ export default function Home() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Market Cap:</span>
+                          <span className="text-muted-foreground">
+                            Market Cap:
+                          </span>
                           <span className="font-medium">
                             ${(cryptoData.marketCap / 1e9).toFixed(2)}B
                           </span>
@@ -1295,7 +1362,9 @@ export default function Home() {
                           </span>
                           <span className="font-medium">
                             {cryptoData.circulatingSupply
-                              ? `${(cryptoData.circulatingSupply / 1e6).toFixed(2)}M`
+                              ? `${(cryptoData.circulatingSupply / 1e6).toFixed(
+                                  2
+                                )}M`
                               : "N/A"}
                           </span>
                         </div>
@@ -1324,16 +1393,26 @@ export default function Home() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 pb-2 border-b">
                         <Badge variant="outline">📈</Badge>
-                        <h3 className="font-semibold text-lg">Technical Data</h3>
+                        <h3 className="font-semibold text-lg">
+                          Technical Data
+                        </h3>
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Exchange:</span>
-                          <span className="font-medium">{cryptoData.exchange}</span>
+                          <span className="text-muted-foreground">
+                            Exchange:
+                          </span>
+                          <span className="font-medium">
+                            {cryptoData.exchange}
+                          </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Currency:</span>
-                          <span className="font-medium">{cryptoData.currency}</span>
+                          <span className="text-muted-foreground">
+                            Currency:
+                          </span>
+                          <span className="font-medium">
+                            {cryptoData.currency}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Type:</span>
@@ -1374,7 +1453,9 @@ export default function Home() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">52W Low:</span>
+                          <span className="text-muted-foreground">
+                            52W Low:
+                          </span>
                           <span className="font-medium">
                             ${cryptoData.fiftyTwoWeekLow.toFixed(2)}
                           </span>
@@ -1425,7 +1506,9 @@ export default function Home() {
                   {filteredCryptos.map((crypto) => (
                     <Button
                       key={crypto}
-                      variant={selectedCrypto === crypto ? "default" : "outline"}
+                      variant={
+                        selectedCrypto === crypto ? "default" : "outline"
+                      }
                       onClick={() => handleCryptoSelect(crypto)}
                       disabled={loading}
                       className="h-auto p-4 flex-col gap-2"
@@ -1504,7 +1587,9 @@ export default function Home() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleCryptoSelect(crypto.symbol)}
+                                  onClick={() =>
+                                    handleCryptoSelect(crypto.symbol)
+                                  }
                                   disabled={loading}
                                   className="w-full"
                                 >
@@ -1555,7 +1640,9 @@ export default function Home() {
                             ) : (
                               <PaginationItem key={pageNumber}>
                                 <PaginationLink
-                                  onClick={() => handlePageChange(pageNumber as number)}
+                                  onClick={() =>
+                                    handlePageChange(pageNumber as number)
+                                  }
                                   isActive={currentPage === pageNumber}
                                   className="cursor-pointer"
                                 >
@@ -1583,6 +1670,9 @@ export default function Home() {
             </Card>
           </div>
         </div>
+      ) : (
+        // News Dashboard
+        <NewsDashboard />
       )}
     </>
   );

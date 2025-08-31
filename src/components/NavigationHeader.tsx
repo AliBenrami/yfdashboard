@@ -4,14 +4,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ChangeTheme from "@/components/changeTheme";
-import { TrendingUp, Bitcoin } from "lucide-react";
+import { TrendingUp, Bitcoin, Newspaper } from "lucide-react";
 
 interface NavigationHeaderProps {
-  currentPage: "stock" | "crypto";
-  onPageChange: (page: "stock" | "crypto") => void;
+  currentPage: "stock" | "crypto" | "news";
+  onPageChange: (page: "stock" | "crypto" | "news") => void;
 }
 
-const NavigationHeader = ({ currentPage, onPageChange }: NavigationHeaderProps) => {
+const NavigationHeader = ({
+  currentPage,
+  onPageChange,
+}: NavigationHeaderProps) => {
   return (
     <div className="bg-gray-50 dark:bg-black">
       {/* Theme Toggle - positioned absolutely */}
@@ -26,7 +29,7 @@ const NavigationHeader = ({ currentPage, onPageChange }: NavigationHeaderProps) 
             Financial Dashboard
           </h1>
           <p className="text-gray-600 dark:text-gray-300 text-sm">
-            Track stocks and cryptocurrencies with real-time data
+            Track stocks, cryptocurrencies, and market news with real-time data
           </p>
 
           {/* Navigation Tabs */}
@@ -44,7 +47,7 @@ const NavigationHeader = ({ currentPage, onPageChange }: NavigationHeaderProps) 
                 </Badge>
               )}
             </Button>
-            
+
             <Button
               variant={currentPage === "crypto" ? "default" : "outline"}
               onClick={() => onPageChange("crypto")}
@@ -53,6 +56,20 @@ const NavigationHeader = ({ currentPage, onPageChange }: NavigationHeaderProps) 
               <Bitcoin className="w-4 h-4" />
               Cryptocurrencies
               {currentPage === "crypto" && (
+                <Badge variant="secondary" className="ml-2">
+                  Active
+                </Badge>
+              )}
+            </Button>
+
+            <Button
+              variant={currentPage === "news" ? "default" : "outline"}
+              onClick={() => onPageChange("news")}
+              className="flex items-center gap-2 px-6 py-2"
+            >
+              <Newspaper className="w-4 h-4" />
+              Market News
+              {currentPage === "news" && (
                 <Badge variant="secondary" className="ml-2">
                   Active
                 </Badge>
