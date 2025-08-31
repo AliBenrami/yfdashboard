@@ -378,20 +378,6 @@ export default function NewsDashboard() {
                           </p>
                         )}
                       </div>
-
-                      {/* Article Link */}
-                      {item.link && (
-                        <div className="mt-3">
-                          <a
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 break-all"
-                          >
-                            {item.link}
-                          </a>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
