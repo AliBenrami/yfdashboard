@@ -62,7 +62,7 @@ const NavigationHeader = ({
               )}
             </Button>
 
-            <Button
+            {/* <Button
               variant={currentPage === "news" ? "default" : "outline"}
               onClick={() => onPageChange("news")}
               className="flex items-center gap-2 px-6 py-2"
@@ -74,7 +74,7 @@ const NavigationHeader = ({
                   Active
                 </Badge>
               )}
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
